@@ -206,17 +206,22 @@ const InvoiceForm = () => {
   };
 
   const handleAddInvoice = () => {
-    if (isEdit) {
-      dispatch(updateInvoice({ id: params.id, updatedInvoice: formData }));
-      alert("Invoice updated successfuly 🥳");
-    } else if (isCopy) {
-      dispatch(addInvoice({ id: generateRandomId(), ...formData }));
-      alert("Invoice added successfuly 🥳");
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length === 0) {
+      if (isEdit) {
+        dispatch(updateInvoice({ id: params.id, updatedInvoice: formData }));
+        alert("Invoice updated successfuly 🥳");
+      } else if (isCopy) {
+        dispatch(addInvoice({ id: generateRandomId(), ...formData }));
+        alert("Invoice added successfuly 🥳");
+      } else {
+        dispatch(addInvoice(formData));
+        alert("Invoice added successfuly 🥳");
+      }
+      navigate("/");
     } else {
-      dispatch(addInvoice(formData));
-      alert("Invoice added successfuly 🥳");
+      setErrors(validationErrors);
     }
-    navigate("/");
   };
 
   const handleCopyInvoice = () => {
@@ -552,37 +557,39 @@ const InvoiceForm = () => {
                   >
                     Review Invoice
                   </Button>
-                  <InvoiceModal
-                    showModal={isOpen}
-                    closeModal={closeModal}
-                    info={{
-                      isOpen,
-                      id: formData.id,
-                      currency: formData.currency,
-                      currentDate: formData.currentDate,
-                      invoiceNumber: formData.invoiceNumber,
-                      dateOfIssue: formData.dateOfIssue,
-                      billTo: formData.billTo,
-                      billToEmail: formData.billToEmail,
-                      billToAddress: formData.billToAddress,
-                      billFrom: formData.billFrom,
-                      billFromEmail: formData.billFromEmail,
-                      billFromAddress: formData.billFromAddress,
-                      notes: formData.notes,
-                      total: formData.total,
-                      subTotal: formData.subTotal,
-                      taxRate: formData.taxRate,
-                      taxAmount: formData.taxAmount,
-                      discountRate: formData.discountRate,
-                      discountAmount: formData.discountAmount,
-                    }}
-                    items={formData.items}
-                    currency={formData.currency}
-                    subTotal={formData.subTotal}
-                    taxAmount={formData.taxAmount}
-                    discountAmount={formData.discountAmount}
-                    total={formData.total}
-                  />
+                  {isSubmited && (
+                    <InvoiceModal
+                      showModal={isOpen}
+                      closeModal={closeModal}
+                      info={{
+                        isOpen,
+                        id: formData.id,
+                        currency: formData.currency,
+                        currentDate: formData.currentDate,
+                        invoiceNumber: formData.invoiceNumber,
+                        dateOfIssue: formData.dateOfIssue,
+                        billTo: formData.billTo,
+                        billToEmail: formData.billToEmail,
+                        billToAddress: formData.billToAddress,
+                        billFrom: formData.billFrom,
+                        billFromEmail: formData.billFromEmail,
+                        billFromAddress: formData.billFromAddress,
+                        notes: formData.notes,
+                        total: formData.total,
+                        subTotal: formData.subTotal,
+                        taxRate: formData.taxRate,
+                        taxAmount: formData.taxAmount,
+                        discountRate: formData.discountRate,
+                        discountAmount: formData.discountAmount,
+                      }}
+                      items={formData.items}
+                      currency={formData.currency}
+                      subTotal={formData.subTotal}
+                      taxAmount={formData.taxAmount}
+                      discountAmount={formData.discountAmount}
+                      total={formData.total}
+                    />
+                  )}
                   <Form.Group className="mb-3">
                     <Form.Label className="fw-bold">Currency:</Form.Label>
                     <Form.Select

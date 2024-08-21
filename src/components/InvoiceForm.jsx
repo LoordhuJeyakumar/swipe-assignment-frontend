@@ -14,6 +14,9 @@ import { addInvoice, updateInvoice } from "../redux/invoicesSlice";
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
 import generateRandomId from "../utils/generateRandomId";
 import { useInvoiceListData } from "../redux/hooks";
+import Products from "../pages/Products";
+import { Tab, Tabs } from "react-bootstrap";
+import { useProducts } from "../redux/useProducts";
 
 const InvoiceForm = () => {
   const dispatch = useDispatch();
@@ -26,6 +29,8 @@ const InvoiceForm = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [copyId, setCopyId] = useState("");
   const { getOneInvoice, listSize } = useInvoiceListData();
+  const { products } = useProducts();
+
   const [formData, setFormData] = useState(
     isEdit
       ? getOneInvoice(params.id)
@@ -61,10 +66,16 @@ const InvoiceForm = () => {
               itemDescription: "",
               itemPrice: "1.00",
               itemQuantity: 1,
+              category: "",
+              categoryId: "",
             },
           ],
         }
   );
+
+  const [errors, setErrors] = useState({});
+  const [tabKey, setTabKey] = useState("invoice");
+  const [isSubmited, setIsSubmited] = useState(false);
 
   useEffect(() => {
     handleCalculateTotal();
@@ -106,9 +117,11 @@ const InvoiceForm = () => {
       const taxAmount = parseFloat(
         subTotal * (prevFormData.taxRate / 100)
       ).toFixed(2);
+
       const discountAmount = parseFloat(
         subTotal * (prevFormData.discountRate / 100)
       ).toFixed(2);
+
       const total = (
         subTotal -
         parseFloat(discountAmount) +
@@ -128,13 +141,38 @@ const InvoiceForm = () => {
   const onItemizedItemEdit = (evt, id) => {
     const updatedItems = formData.items.map((oldItem) => {
       if (oldItem.itemId === id) {
-        return { ...oldItem, [evt.target.name]: evt.target.value };
+        let newItem = { ...oldItem };
+
+        if (evt.target.name === "itemData") {
+          // Destructure the item data from the event
+          const {
+            itemName,
+            itemPrice,
+            itemDescription,
+            itemQuantity,
+            category,
+            categoryId,
+          } = evt.target.value;
+
+          // Update each field individually
+          newItem.itemName = itemName;
+          newItem.itemPrice = itemPrice;
+          newItem.itemDescription = itemDescription;
+          newItem.itemQuantity = itemQuantity;
+          newItem.category = category;
+          newItem.categoryId = categoryId;
+        } else {
+          // Single field update
+          newItem[evt.target.name] = evt.target.value;
+        }
+
+        return newItem;
       }
       return oldItem;
     });
 
     setFormData({ ...formData, items: updatedItems });
-    handleCalculateTotal();
+    handleCalculateTotal(); // Recalculate the total after the update
   };
 
   const editField = (name, value) => {
@@ -147,9 +185,20 @@ const InvoiceForm = () => {
   };
 
   const openModal = (event) => {
-    event.preventDefault();
-    handleCalculateTotal();
     setIsOpen(true);
+  };
+
+  const handleInvoiceFormSubmit = (event) => {
+    console.log(event);
+    event.preventDefault();
+    const validationErrors = validateForm();
+
+    if (Object.keys(validationErrors).length === 0) {
+      setIsSubmited(true);
+      openModal();
+    } else {
+      setErrors(validationErrors);
+    }
   };
 
   const closeModal = () => {
@@ -183,8 +232,41 @@ const InvoiceForm = () => {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.dateOfIssue) errors.dateOfIssue = "Due date is required.";
+    if (!formData.billTo) errors.billTo = "Bill to is required.";
+    if (!formData.billToEmail)
+      errors.billToEmail = "Bill to email is required.";
+    if (!formData.billToAddress)
+      errors.billToAddress = "Bill to address is required.";
+    if (!formData.billFrom) errors.billFrom = "Bill from is required.";
+    if (!formData.billFromEmail)
+      errors.billFromEmail = "Bill from email is required.";
+    if (!formData.billFromAddress)
+      errors.billFromAddress = "Bill from address is required.";
+
+    // Validate items
+    formData.items.forEach((item, index) => {
+      if (!item.itemName)
+        errors[`itemName_${index}`] = "Item name is required.";
+      if (!item.itemPrice || item.itemPrice <= 0)
+        errors[`itemPrice_${index}`] = "Item price must be greater than 0.";
+      if (item.itemQuantity <= 0)
+        errors[`itemQuantity_${index}`] =
+          "Item quantity must be greater than 0.";
+    });
+
+    return errors;
+  };
+  const handleSwitchTab = (key) => {
+    console.log(key);
+
+    setTabKey((prevKey) => (prevKey === "products" ? "invoice" : "products"));
+  };
   return (
-    <Form onSubmit={openModal}>
+    <>
       <div className="d-flex align-items-center">
         <BiArrowBack size={18} />
         <div className="fw-bold mt-1 mx-2 cursor-pointer">
@@ -193,294 +275,401 @@ const InvoiceForm = () => {
           </Link>
         </div>
       </div>
-
-      <Row>
-        <Col md={8} lg={9}>
-          <Card className="p-4 p-xl-5 my-3 my-xl-4">
-            <div className="d-flex flex-row align-items-start justify-content-between mb-3">
-              <div className="d-flex flex-column">
-                <div className="d-flex flex-column">
-                  <div className="mb-2">
-                    <span className="fw-bold">Current&nbsp;Date:&nbsp;</span>
-                    <span className="current-date">{formData.currentDate}</span>
+      <Tabs
+        defaultActiveKey="invoice"
+        id="invoice-tabs"
+        activeKey={tabKey}
+        onSelect={(k) => setTabKey(k)}
+      >
+        <Tab eventKey="invoice" title="Invoice">
+          {/* Existing invoice form content */}
+          <Form onSubmit={handleInvoiceFormSubmit}>
+            <Row>
+              <Col md={8} lg={9}>
+                <Card className="p-4 p-xl-5 my-3 my-xl-4">
+                  <div className="d-flex flex-row align-items-start justify-content-between mb-3">
+                    <div className="d-flex flex-column">
+                      <div className="d-flex flex-column">
+                        <div className="mb-2">
+                          <span className="fw-bold">
+                            Current&nbsp;Date:&nbsp;
+                          </span>
+                          <span className="current-date">
+                            {formData.currentDate}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="d-flex flex-row align-items-center justify-content-center">
+                        <Form.Group
+                          className="mb-3 d-flex flex-row align-items-center"
+                          controlId="dateOfIssue"
+                        >
+                          <Form.Label>
+                            <span className="fw-bold d-block me-2">
+                              Due&nbsp;Date:
+                            </span>
+                          </Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={formData.dateOfIssue}
+                            name="dateOfIssue"
+                            onChange={(e) =>
+                              editField(e.target.name, e.target.value)
+                            }
+                            style={{ maxWidth: "150px" }}
+                          />
+                          {errors.dateOfIssue && (
+                            <Form.Text className="text-danger">
+                              {errors.dateOfIssue}
+                            </Form.Text>
+                          )}
+                        </Form.Group>
+                      </div>
+                    </div>
+                    <div className="d-flex flex-row align-items-center">
+                      <Form.Group
+                        className="mb-3 d-flex flex-row align-items-center"
+                        controlId="invoiceNumber"
+                      >
+                        <Form.Label>
+                          {" "}
+                          <span className="fw-bold me-2">
+                            Invoice&nbsp;Number:&nbsp;
+                          </span>
+                        </Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={formData.invoiceNumber}
+                          name="invoiceNumber"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                          min="1"
+                          style={{ maxWidth: "70px" }}
+                          readOnly
+                        />
+                      </Form.Group>
+                    </div>
                   </div>
-                </div>
-                <div className="d-flex flex-row align-items-center">
-                  <span className="fw-bold d-block me-2">Due&nbsp;Date:</span>
-                  <Form.Control
-                    type="date"
-                    value={formData.dateOfIssue}
-                    name="dateOfIssue"
-                    onChange={(e) => editField(e.target.name, e.target.value)}
-                    style={{ maxWidth: "150px" }}
-                    required
+                  <hr className="my-4" />
+                  <Row className="mb-5">
+                    <Col>
+                      <Form.Label className="fw-bold">Bill to:</Form.Label>
+                      <Form.Group controlId="billTo">
+                        <Form.Control
+                          placeholder="Who is this invoice to?"
+                          rows={3}
+                          value={formData.billTo}
+                          type="text"
+                          name="billTo"
+                          className="my-2"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                          autoComplete="name"
+                        />
+                        {errors.billTo && (
+                          <Form.Text className="text-danger">
+                            {errors.billTo}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                      <Form.Group controlId="billToEmail">
+                        <Form.Control
+                          placeholder="Email address"
+                          value={formData.billToEmail}
+                          type="email"
+                          name="billToEmail"
+                          className="my-2"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                          autoComplete="email"
+                        />
+                        {errors.billToEmail && (
+                          <Form.Text className="text-danger">
+                            {errors.billToEmail}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                      <Form.Group controlId="billToAddress">
+                        <Form.Control
+                          placeholder="Billing address"
+                          value={formData.billToAddress}
+                          type="text"
+                          name="billToAddress"
+                          className="my-2"
+                          autoComplete="address"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                        />
+                        {errors.billToAddress && (
+                          <Form.Text className="text-danger">
+                            {errors.billToAddress}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                    </Col>
+                    <Col>
+                      <Form.Label className="fw-bold">Bill from:</Form.Label>
+                      <Form.Group controlId="billFrom">
+                        <Form.Control
+                          placeholder="Who is this invoice from?"
+                          rows={3}
+                          value={formData.billFrom}
+                          type="text"
+                          name="billFrom"
+                          className="my-2"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                          autoComplete="name"
+                        />
+                        {errors.billFrom && (
+                          <Form.Text className="text-danger">
+                            {errors.billFrom}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                      <Form.Group controlId="billFromEmail">
+                        <Form.Control
+                          placeholder="Email address"
+                          value={formData.billFromEmail}
+                          type="email"
+                          name="billFromEmail"
+                          className="my-2"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                          autoComplete="email"
+                        />
+                        {errors.billFromEmail && (
+                          <Form.Text className="text-danger">
+                            {errors.billFromEmail}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                      <Form.Group controlId="billFromAddress">
+                        <Form.Control
+                          placeholder="Billing address"
+                          value={formData.billFromAddress}
+                          type="text"
+                          name="billFromAddress"
+                          className="my-2"
+                          autoComplete="address"
+                          onChange={(e) =>
+                            editField(e.target.name, e.target.value)
+                          }
+                        />
+                        {errors.billFromAddress && (
+                          <Form.Text className="text-danger">
+                            {errors.billFromAddress}
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <InvoiceItem
+                    onItemizedItemEdit={onItemizedItemEdit}
+                    onRowAdd={handleAddEvent}
+                    onRowDel={handleRowDel}
+                    currency={formData.currency}
+                    items={formData.items}
+                    products={products}
+                    errors={errors}
+                    setErrors={setErrors}
+                    handleGoToProductForm={handleSwitchTab}
                   />
-                </div>
-              </div>
-              <div className="d-flex flex-row align-items-center">
-                <span className="fw-bold me-2">Invoice&nbsp;Number:&nbsp;</span>
-                <Form.Control
-                  type="number"
-                  value={formData.invoiceNumber}
-                  name="invoiceNumber"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  min="1"
-                  style={{ maxWidth: "70px" }}
-                  required
-                />
-              </div>
-            </div>
-            <hr className="my-4" />
-            <Row className="mb-5">
-              <Col>
-                <Form.Label className="fw-bold">Bill to:</Form.Label>
-                <Form.Control
-                  placeholder="Who is this invoice to?"
-                  rows={3}
-                  value={formData.billTo}
-                  type="text"
-                  name="billTo"
-                  className="my-2"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  autoComplete="name"
-                  required
-                />
-                <Form.Control
-                  placeholder="Email address"
-                  value={formData.billToEmail}
-                  type="email"
-                  name="billToEmail"
-                  className="my-2"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  autoComplete="email"
-                  required
-                />
-                <Form.Control
-                  placeholder="Billing address"
-                  value={formData.billToAddress}
-                  type="text"
-                  name="billToAddress"
-                  className="my-2"
-                  autoComplete="address"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  required
-                />
+                  <Row className="mt-4 justify-content-end">
+                    <Col lg={6}>
+                      <div className="d-flex flex-row align-items-start justify-content-between">
+                        <span className="fw-bold">Subtotal:</span>
+                        <span>
+                          {formData.currency}
+                          {formData.subTotal}
+                        </span>
+                      </div>
+                      <div className="d-flex flex-row align-items-start justify-content-between mt-2">
+                        <span className="fw-bold">Discount:</span>
+                        <span>
+                          <span className="small">
+                            ({formData.discountRate || 0}%)
+                          </span>
+                          {formData.currency}
+                          {formData.discountAmount || 0}
+                        </span>
+                      </div>
+                      <div className="d-flex flex-row align-items-start justify-content-between mt-2">
+                        <span className="fw-bold">Tax:</span>
+                        <span>
+                          <span className="small">
+                            ({formData.taxRate || 0}%)
+                          </span>
+                          {formData.currency}
+                          {formData.taxAmount || 0}
+                        </span>
+                      </div>
+                      <hr />
+                      <div
+                        className="d-flex flex-row align-items-start justify-content-between"
+                        style={{ fontSize: "1.125rem" }}
+                      >
+                        <span className="fw-bold">Total:</span>
+                        <span className="fw-bold">
+                          {formData.currency}
+                          {formData.total || 0}
+                        </span>
+                      </div>
+                    </Col>
+                  </Row>
+                  <hr className="my-4" />
+                  <Form.Label className="fw-bold">Notes:</Form.Label>
+                  <Form.Control
+                    placeholder="Thanks for your business!"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={(e) => editField(e.target.name, e.target.value)}
+                    as="textarea"
+                    className="my-2"
+                    rows={1}
+                  />
+                </Card>
               </Col>
-              <Col>
-                <Form.Label className="fw-bold">Bill from:</Form.Label>
-                <Form.Control
-                  placeholder="Who is this invoice from?"
-                  rows={3}
-                  value={formData.billFrom}
-                  type="text"
-                  name="billFrom"
-                  className="my-2"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  autoComplete="name"
-                  required
-                />
-                <Form.Control
-                  placeholder="Email address"
-                  value={formData.billFromEmail}
-                  type="email"
-                  name="billFromEmail"
-                  className="my-2"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  autoComplete="email"
-                  required
-                />
-                <Form.Control
-                  placeholder="Billing address"
-                  value={formData.billFromAddress}
-                  type="text"
-                  name="billFromAddress"
-                  className="my-2"
-                  autoComplete="address"
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  required
-                />
-              </Col>
-            </Row>
-            <InvoiceItem
-              onItemizedItemEdit={onItemizedItemEdit}
-              onRowAdd={handleAddEvent}
-              onRowDel={handleRowDel}
-              currency={formData.currency}
-              items={formData.items}
-            />
-            <Row className="mt-4 justify-content-end">
-              <Col lg={6}>
-                <div className="d-flex flex-row align-items-start justify-content-between">
-                  <span className="fw-bold">Subtotal:</span>
-                  <span>
-                    {formData.currency}
-                    {formData.subTotal}
-                  </span>
-                </div>
-                <div className="d-flex flex-row align-items-start justify-content-between mt-2">
-                  <span className="fw-bold">Discount:</span>
-                  <span>
-                    <span className="small">
-                      ({formData.discountRate || 0}%)
-                    </span>
-                    {formData.currency}
-                    {formData.discountAmount || 0}
-                  </span>
-                </div>
-                <div className="d-flex flex-row align-items-start justify-content-between mt-2">
-                  <span className="fw-bold">Tax:</span>
-                  <span>
-                    <span className="small">({formData.taxRate || 0}%)</span>
-                    {formData.currency}
-                    {formData.taxAmount || 0}
-                  </span>
-                </div>
-                <hr />
-                <div
-                  className="d-flex flex-row align-items-start justify-content-between"
-                  style={{ fontSize: "1.125rem" }}
-                >
-                  <span className="fw-bold">Total:</span>
-                  <span className="fw-bold">
-                    {formData.currency}
-                    {formData.total || 0}
-                  </span>
-                </div>
-              </Col>
-            </Row>
-            <hr className="my-4" />
-            <Form.Label className="fw-bold">Notes:</Form.Label>
-            <Form.Control
-              placeholder="Thanks for your business!"
-              name="notes"
-              value={formData.notes}
-              onChange={(e) => editField(e.target.name, e.target.value)}
-              as="textarea"
-              className="my-2"
-              rows={1}
-            />
-          </Card>
-        </Col>
-        <Col md={4} lg={3}>
-          <div className="sticky-top pt-md-3 pt-xl-4">
-            <Button
-              variant="dark"
-              onClick={handleAddInvoice}
-              className="d-block w-100 mb-2"
-            >
-              {isEdit ? "Update Invoice" : "Add Invoice"}
-            </Button>
-            <Button variant="primary" type="submit" className="d-block w-100">
-              Review Invoice
-            </Button>
-            <InvoiceModal
-              showModal={isOpen}
-              closeModal={closeModal}
-              info={{
-                isOpen,
-                id: formData.id,
-                currency: formData.currency,
-                currentDate: formData.currentDate,
-                invoiceNumber: formData.invoiceNumber,
-                dateOfIssue: formData.dateOfIssue,
-                billTo: formData.billTo,
-                billToEmail: formData.billToEmail,
-                billToAddress: formData.billToAddress,
-                billFrom: formData.billFrom,
-                billFromEmail: formData.billFromEmail,
-                billFromAddress: formData.billFromAddress,
-                notes: formData.notes,
-                total: formData.total,
-                subTotal: formData.subTotal,
-                taxRate: formData.taxRate,
-                taxAmount: formData.taxAmount,
-                discountRate: formData.discountRate,
-                discountAmount: formData.discountAmount,
-              }}
-              items={formData.items}
-              currency={formData.currency}
-              subTotal={formData.subTotal}
-              taxAmount={formData.taxAmount}
-              discountAmount={formData.discountAmount}
-              total={formData.total}
-            />
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Currency:</Form.Label>
-              <Form.Select
-                onChange={(event) =>
-                  onCurrencyChange({ currency: event.target.value })
-                }
-                className="btn btn-light my-1"
-                aria-label="Change Currency"
-              >
-                <option value="$">USD (United States Dollar)</option>
-                <option value="£">GBP (British Pound Sterling)</option>
-                <option value="¥">JPY (Japanese Yen)</option>
-                <option value="$">CAD (Canadian Dollar)</option>
-                <option value="$">AUD (Australian Dollar)</option>
-                <option value="$">SGD (Singapore Dollar)</option>
-                <option value="¥">CNY (Chinese Renminbi)</option>
-                <option value="₿">BTC (Bitcoin)</option>
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="my-3">
-              <Form.Label className="fw-bold">Tax rate:</Form.Label>
-              <InputGroup className="my-1 flex-nowrap">
-                <Form.Control
-                  name="taxRate"
-                  type="number"
-                  value={formData.taxRate}
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  className="bg-white border"
-                  placeholder="0.0"
-                  min="0.00"
-                  step="0.01"
-                  max="100.00"
-                />
-                <InputGroup.Text className="bg-light fw-bold text-secondary small">
-                  %
-                </InputGroup.Text>
-              </InputGroup>
-            </Form.Group>
-            <Form.Group className="my-3">
-              <Form.Label className="fw-bold">Discount rate:</Form.Label>
-              <InputGroup className="my-1 flex-nowrap">
-                <Form.Control
-                  name="discountRate"
-                  type="number"
-                  value={formData.discountRate}
-                  onChange={(e) => editField(e.target.name, e.target.value)}
-                  className="bg-white border"
-                  placeholder="0.0"
-                  min="0.00"
-                  step="0.01"
-                  max="100.00"
-                />
-                <InputGroup.Text className="bg-light fw-bold text-secondary small">
-                  %
-                </InputGroup.Text>
-              </InputGroup>
-            </Form.Group>
+              <Col md={4} lg={3}>
+                <div className="sticky-top pt-md-3 pt-xl-4">
+                  <Button
+                    variant="dark"
+                    onClick={handleAddInvoice}
+                    className="d-block w-100 mb-2"
+                  >
+                    {isEdit ? "Update Invoice" : "Add Invoice"}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    className="d-block w-100"
+                  >
+                    Review Invoice
+                  </Button>
+                  <InvoiceModal
+                    showModal={isOpen}
+                    closeModal={closeModal}
+                    info={{
+                      isOpen,
+                      id: formData.id,
+                      currency: formData.currency,
+                      currentDate: formData.currentDate,
+                      invoiceNumber: formData.invoiceNumber,
+                      dateOfIssue: formData.dateOfIssue,
+                      billTo: formData.billTo,
+                      billToEmail: formData.billToEmail,
+                      billToAddress: formData.billToAddress,
+                      billFrom: formData.billFrom,
+                      billFromEmail: formData.billFromEmail,
+                      billFromAddress: formData.billFromAddress,
+                      notes: formData.notes,
+                      total: formData.total,
+                      subTotal: formData.subTotal,
+                      taxRate: formData.taxRate,
+                      taxAmount: formData.taxAmount,
+                      discountRate: formData.discountRate,
+                      discountAmount: formData.discountAmount,
+                    }}
+                    items={formData.items}
+                    currency={formData.currency}
+                    subTotal={formData.subTotal}
+                    taxAmount={formData.taxAmount}
+                    discountAmount={formData.discountAmount}
+                    total={formData.total}
+                  />
+                  <Form.Group className="mb-3">
+                    <Form.Label className="fw-bold">Currency:</Form.Label>
+                    <Form.Select
+                      onChange={(event) =>
+                        onCurrencyChange({ currency: event.target.value })
+                      }
+                      className="btn btn-light my-1"
+                      aria-label="Change Currency"
+                    >
+                      <option value="$">USD (United States Dollar)</option>
+                      <option value="£">GBP (British Pound Sterling)</option>
+                      <option value="¥">JPY (Japanese Yen)</option>
+                      <option value="$">CAD (Canadian Dollar)</option>
+                      <option value="$">AUD (Australian Dollar)</option>
+                      <option value="$">SGD (Singapore Dollar)</option>
+                      <option value="¥">CNY (Chinese Renminbi)</option>
+                      <option value="₿">BTC (Bitcoin)</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="my-3">
+                    <Form.Label className="fw-bold">Tax rate:</Form.Label>
+                    <InputGroup className="my-1 flex-nowrap">
+                      <Form.Control
+                        name="taxRate"
+                        type="number"
+                        value={formData.taxRate}
+                        onChange={(e) =>
+                          editField(e.target.name, e.target.value)
+                        }
+                        className="bg-white border"
+                        placeholder="0.0"
+                        min="0.00"
+                        step="0.01"
+                        max="100.00"
+                      />
+                      <InputGroup.Text className="bg-light fw-bold text-secondary small">
+                        %
+                      </InputGroup.Text>
+                    </InputGroup>
+                  </Form.Group>
+                  <Form.Group className="my-3">
+                    <Form.Label className="fw-bold">Discount rate:</Form.Label>
+                    <InputGroup className="my-1 flex-nowrap">
+                      <Form.Control
+                        name="discountRate"
+                        type="number"
+                        value={formData.discountRate}
+                        onChange={(e) =>
+                          editField(e.target.name, e.target.value)
+                        }
+                        className="bg-white border"
+                        placeholder="0.0"
+                        min="0.00"
+                        step="0.01"
+                        max="100.00"
+                      />
+                      <InputGroup.Text className="bg-light fw-bold text-secondary small">
+                        %
+                      </InputGroup.Text>
+                    </InputGroup>
+                  </Form.Group>
 
-            <Form.Control
-              placeholder="Enter Invoice ID"
-              name="copyId"
-              value={copyId}
-              onChange={(e) => setCopyId(e.target.value)}
-              type="text"
-              className="my-2 bg-white border"
-            />
-            <Button
-              variant="primary"
-              onClick={handleCopyInvoice}
-              className="d-block"
-            >
-              Copy Old Invoice
-            </Button>
-          </div>
-        </Col>
-      </Row>
-    </Form>
+                  <Form.Control
+                    placeholder="Enter Invoice ID"
+                    name="copyId"
+                    value={copyId}
+                    onChange={(e) => setCopyId(e.target.value)}
+                    type="text"
+                    className="my-2 bg-white border"
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={handleCopyInvoice}
+                    className="d-block"
+                  >
+                    Copy Old Invoice
+                  </Button>
+                </div>
+              </Col>
+            </Row>
+          </Form>
+        </Tab>
+        <Tab eventKey="products" title="Products">
+          <Products />
+        </Tab>
+      </Tabs>
+    </>
   );
 };
 

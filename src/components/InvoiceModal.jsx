@@ -27,6 +27,20 @@ const GenerateInvoice = () => {
 };
 
 const InvoiceModal = (props) => {
+  console.log(props.items);
+
+  //Group Items by category
+  const groupedItems = props.items.reduce((acc, item) => {
+    const category = item.category;
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(item);
+    return acc;
+  }, {});
+
+  console.log(groupedItems);
+
   return (
     <div>
       <Modal
@@ -44,9 +58,9 @@ const InvoiceModal = (props) => {
               <h4 className="fw-bold my-2">
                 {props.info.billFrom || "John Uberbacher"}
               </h4>
-              <h7 className="fw-bold text-secondary mb-1">
+              <h6 className="fw-bold text-secondary mb-1">
                 Invoice No.: {props.info.invoiceNumber || ""}
-              </h7>
+              </h6>
             </div>
             <div className="text-end ms-4">
               <h6 className="fw-bold mt-1 mb-2">Amount&nbsp;Due:</h6>
@@ -75,7 +89,7 @@ const InvoiceModal = (props) => {
                 <div>{props.info.dateOfIssue || ""}</div>
               </Col>
             </Row>
-            <Table className="mb-0">
+            {/*  <Table className="mb-0">
               <thead>
                 <tr>
                   <th>QTY</th>
@@ -90,7 +104,9 @@ const InvoiceModal = (props) => {
                     <tr id={i} key={i}>
                       <td style={{ width: "70px" }}>{item.itemQuantity}</td>
                       <td>
-                        {item.itemName} - {item.itemDescription}
+                        <b>{item.itemName}</b>
+                        <br />
+                        {item.itemDescription}
                       </td>
                       <td className="text-end" style={{ width: "100px" }}>
                         {props.currency} {item.itemPrice}
@@ -101,6 +117,46 @@ const InvoiceModal = (props) => {
                     </tr>
                   );
                 })}
+              </tbody>
+            </Table> */}
+            <Table className="mb-4">
+              <thead>
+                <tr>
+                  <th className="text-bg-primary ps-2">QTY</th>
+                  <th className="text-bg-primary">DESCRIPTION</th>
+                  <th className="text-end text-bg-primary">PRICE</th>
+                  <th className="text-end text-bg-primary pe-2">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Render grouped items */}
+                {Object.keys(groupedItems).map((category, index) => (
+                  <React.Fragment key={index}>
+                    <tr className="p-0 mt-2 ">
+                      <td colSpan={4} className="">
+                        <h6 className="fw-bold fs-8 p-0 m-0 mt-2  text-center border-primary  text-bg-info rounded">
+                          {category}
+                        </h6>
+                      </td>
+                    </tr>
+                    {groupedItems[category].map((item, i) => (
+                      <tr id={i} key={i}>
+                        <td style={{ width: "70px" }}>{item.itemQuantity}</td>
+                        <td>
+                          <b>{item.itemName}</b>
+                          <br />
+                          {item.itemDescription}
+                        </td>
+                        <td className="text-end" style={{ width: "100px" }}>
+                          {props.currency} {item.itemPrice}
+                        </td>
+                        <td className="text-end" style={{ width: "100px" }}>
+                          {props.currency} {item.itemPrice * item.itemQuantity}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
               </tbody>
             </Table>
             <Table>
@@ -131,16 +187,17 @@ const InvoiceModal = (props) => {
                   </tr>
                 )}
                 <tr className="text-end">
-                  <td></td>
+                  <td>Total Qty : {props.items.length}</td>
                   <td className="fw-bold" style={{ width: "100px" }}>
                     TOTAL
                   </td>
-                  <td className="text-end" style={{ width: "100px" }}>
+                  <td className="text-end  fw-bold" style={{ width: "100px" }}>
                     {props.currency} {props.total}
                   </td>
                 </tr>
               </tbody>
             </Table>
+
             {props.info.notes && (
               <div className="bg-light py-3 px-4 rounded">
                 {props.info.notes}

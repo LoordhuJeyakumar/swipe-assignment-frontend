@@ -5,7 +5,7 @@ import InputGroup from "react-bootstrap/InputGroup";
 
 const EditableField = (props) => {
   return (
-    <InputGroup className="my-1 flex-nowrap">
+    <InputGroup className="my-1 flex-nowrap ">
       {props.cellData.leading != null && (
         <InputGroup.Text className="bg-light fw-bold border-0 text-secondary px-2">
           <span
@@ -16,20 +16,31 @@ const EditableField = (props) => {
           </span>
         </InputGroup.Text>
       )}
-      <Form.Control
-        className={props.cellData.textAlign}
-        type={props.cellData.type}
-        placeholder={props.cellData.placeholder}
-        min={props.cellData.min}
-        name={props.cellData.name}
-        id={props.cellData.id}
-        value={props.cellData.value}
-        step={props.cellData.step}
-        precision={props.cellData.precision}
-        aria-label={props.cellData.name}
-        onChange={props.onItemizedItemEdit}
-        required
-      />
+
+      <div className="w-100">
+        <Form.Control
+          className={props.cellData.textAlign}
+          type={props.cellData.type}
+          placeholder={props.cellData.placeholder}
+          min={props.cellData.min}
+          name={props.cellData.name}
+          id={props.cellData.id}
+          value={props.cellData.value}
+          step={props.cellData.step}
+          precision={props.cellData.precision}
+          aria-label={props.cellData.name}
+          onChange={props.onItemizedItemEdit}
+          isInvalid={!!props.error}
+          width={"100%"}
+        />
+        <Form.Control.Feedback
+          type="invalid"
+          as={"span"}
+          className="table-error"
+        >
+          {props.error}
+        </Form.Control.Feedback>
+      </div>
     </InputGroup>
   );
 };
